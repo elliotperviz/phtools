@@ -41,13 +41,8 @@ subroutine credits
   write(*,'(a)') ' to acknowledge the efforts of people that have made the research possible.'
   write(*,'(a)') ' In this spirit, please cite '
   write(*,*)
-  write(*,'(a)') ' Normal Dynamics: solving Newton’s equations in the reciprocal space'
-  write(*,'(a)') ' A. Cammarata et al., Phys. Rev. Lett XX, XXXXX (XXXX)'
-  write(*,'(a)') ' https://doi.org/10.1103/xxx'
-  write(*,*)
-  write(*,'(a)') ' Sampling dynamical trajectories in the reciprocal space'
-  write(*,'(a)') ' A. Cammarata et al., Phys. Rev. B XX, XXXXX (XXXX)'
-  write(*,'(a)') ' https://doi.org/10.1103/xxx'
+  write(*,'(a)') ' A. Cammarata, M. Dasic, P. Nicolini, J. Chem. Phys. 161, 084111 (2024)'
+  write(*,'(a)') ' https://doi.org/10.1063/5.0224108'
   write(*,*)
   write(*,*)
 
