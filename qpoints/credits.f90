@@ -9,8 +9,8 @@
 ! ( https://phonopy.github.io/phonopy )
 !
 ! If used for production, you should cite
-! Phys. Rev. B XX, XXXXX (XXXX)
-! https://doi.org/10.1103/xxx
+! A. Cammarata, M. Dasic, P. Nicolini, J. Chem. Phys. 161, 084111 (2024)
+! https://doi.org/10.1063/5.0224108
 !
 !    This file is part of qpoints.
 !

@@ -9,8 +9,8 @@
 ! ( https://phonopy.github.io/phonopy )
 !
 ! If used for production, you should cite
-! Phys. Rev. B XX, XXXXX (XXXX)
-! https://doi.org/10.1103/xxx
+! A. Cammarata, M. Dasic, P. Nicolini, J. Chem. Phys. 161, 084111 (2024)
+! https://doi.org/10.1063/5.0224108
 !
 !    This file is part of qpoints.
 !
@@ -28,6 +28,9 @@
 !    along with phonchar.  If not, see <http://www.gnu.org/licenses/>.
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+! v 1.5
+! - corrected a bug when treating q-points at the border of the Brillouin zone
 !
 ! v 1.4
 ! - changed header of qmatrix.nd and freq.nd
@@ -74,7 +77,7 @@
 
 module var
   ! global parameters
-  character(3), parameter :: version='1.4'
+  character(3), parameter :: version='1.5'
   character(7), parameter :: progname = 'QPOINTS'
   real(8), parameter :: pi2 = 2.d0 * acos(-1.d0)
   ! from input
