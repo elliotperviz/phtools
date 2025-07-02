@@ -1,13 +1,15 @@
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
 ! eigmap. Copyright (C) Antonio Cammarata
 ! https://nano.cvut.cz/researchers/antonio-cammarata
 ! https://orcid.org/0000-0002-5691-0682
 ! 
-! Program to calculate the atomic character
-! of phonon eigenvectors obtained from PHONOPY
-! ( https://phonopy.github.io/phonopy )
+! Program to calculate the map between different eigenvector
+! via the scalar product
+!
+! If used for production, you should cite
+! A. Cammarata, M. Dasic, P. Nicolini, J. Chem. Phys. 161, 084111 (2024)
+! https://doi.org/10.1063/5.0224108
 !
 !    This file is part of eigmap.
 !

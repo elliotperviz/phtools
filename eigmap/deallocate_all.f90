@@ -8,10 +8,10 @@
 ! via the scalar product
 !
 ! If used for production, you should cite
-! Phys. Rev. B XX, XXXXX (XXXX)
-! https://doi.org/10.1103/xxx
-! where the formulation is reported in section II "Eigenvector map based on
-! atomic displacements" of the Supplemental Material.
+! Phys. Rev. B 103, 035406 (2021)
+! https://doi.org/10.1103/PhysRevB.103.035406
+! where the formulation is reported in section V "Atomic character of the phonon modes" 
+! of the supplemental material.
 !
 !    This file is part of eigmap.
 !
