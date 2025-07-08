@@ -48,7 +48,7 @@ $ ./phonchar -h
   | |_) | | | | (_) | | | | (__| | | | (_| | |
   | .__/|_| |_|\___/|_| |_|\___|_| |_|\__,_|_|
   |_|
-                  2.2
+                  2.3
 
  Syntax: phonchar <setting file> <band.yaml file>
 
