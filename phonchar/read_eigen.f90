@@ -26,21 +26,25 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine read_eigen
-  use var, only: nat, nqp, neig, eig, freq
-  use integer_to_string
+  use io_units, only: inp_band
+  use var, only: nqp, nq, eig, freq, vec
+  use functions, only: i2a
+  use refconf, only: atoms_UC
                  
   implicit none
   integer(4) :: i, j, k, ix
   integer(8) :: l
+  real(8) :: tmpr, tmpi
   character(200) :: dum, in2file
 
   call get_command_argument(2,in2file)
-  open(unit=10,file=in2file, action='READ')
+
+  open(unit=inp_band,file=in2file, action='READ')
 
   write(*,'(2a)') ' Reading eigenvectors and frequencies from file: ', trim(in2file)
   write(*,'(a)', advance='no') ' Checking if input file contains eigenvectors: '
   do
-    read(10,*,iostat=i) dum
+    read(inp_band,*,iostat=i) dum
     if ( i<0 ) then
       write(*,'(a)') 'reached end of file, no eigenvectors found.'
       write(*,*)
@@ -50,47 +54,36 @@ subroutine read_eigen
       exit
     end if
   end do
-  call fseek(10, 0, 0, i)
-  l=ftell(10)
+  call fseek(inp_band, 0, 0, i)
+  l=ftell(inp_band)
   do
-    read(10,*,iostat=i) dum
+    read(inp_band,*,iostat=i) dum
     if ( i<0 ) then
       write(*,'(a)') 'reached end of file, nqpoints string not found.'
       write(*,*)
       stop 
     else if ( dum == 'nqpoint:' ) then
-      backspace(10)
-      read(10,*) dum, nqp
+      backspace(inp_band)
+      read(inp_band,*) dum, nqp
       exit
     end if
   end do
 
   write(*,'(2a)') ' Number of q-points: ', i2a(nqp)
-  call fseek(10, 0, 0, i)
-  l=ftell(10)
-  do
-    read(10,*,iostat=i) dum
-    if ( i<0 ) then
-      write(*,'(a)') 'reached end of file, natom string not found.'
-      write(*,*)
-      stop 
-    else if ( dum == 'natom:' ) then
-      backspace(10)
-      read(10,*) dum, nat
-      write(*,'(2a)') ' Number of atoms: ', i2a(nat)
-      exit
-    end if
-  end do
+  call fseek(inp_band, 0, 0, i)
+  l=ftell(inp_band)
 
-  neig=nat*3
+  nq=atoms_UC*3
 
-  allocate ( eig(nqp,neig,neig), stat = i )
+  allocate ( eig(nqp,nq,nq), stat = i )
   if ( i /= 0 ) stop 'Allocation failed for eig'
-  allocate ( freq(nqp,neig), stat = i )
+  allocate ( freq(nqp,nq), stat = i )
+  if ( i /= 0 ) stop 'Allocation failed for freq'
+  allocate ( vec(nqp,3), stat = i )
   if ( i /= 0 ) stop 'Allocation failed for freq'
 
   do
-    read(10,*,iostat=i) dum
+    read(inp_band,*,iostat=i) dum
     if ( i<0 ) then
       write(*,'(*(a))') 'reached end of file, the input file ', trim(in2file), ' is not complete.'
       write(*,*)
@@ -101,27 +94,29 @@ subroutine read_eigen
   end do
   
   do i = 1, nqp
-    do k = 1,3
-      read(10,*)
+    read(inp_band,*) dum, dum, dum, vec(i,:)
+    do k = 1,2
+      read(inp_band,*)
     end do
 
-    do j = 1, neig
-      read(10,*)
-      read(10,*) dum, freq(i,j)
-      read(10,*)
+    do j = 1, nq
+      read(inp_band,*)
+      read(inp_band,*) dum, freq(i,j)
+      read(inp_band,*)
 
-      do k = 1, nat
-        read(10,*)
+      do k = 1, atoms_UC
+        read(inp_band,*)
         do ix = 1, 3
-          read(10,*) dum, dum, eig(i,j,(k-1)*3+ix)
+          read(inp_band,*) dum, dum, tmpr, tmpi
+          eig(i,j,(k-1)*3+ix) = cmplx(tmpr, tmpi, 8) 
         end do
       end do
 
     end do
-    read(10,*)
+    read(inp_band,*)
   end do
 
-  close(10)
+  close(inp_band)
 
   write(*,*) 'Reading input file done.'
 

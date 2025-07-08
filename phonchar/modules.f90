@@ -34,54 +34,49 @@
 !    along with phonchar.  If not, see <http://www.gnu.org/licenses/>.
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!
-! v 2.3
-! - phonon character is now calculated by considering the atom contribution to the 
-!   displacement u_i = m_i^(-1/2) q_amp exp(ik.r) eig_i(k,j)
-!   where q_amp is the same for all the modes at fixed q-point
-! - for each q-point, the displacement u_i is generated commensurate with the q-point
-!
-! v 2.2
-! Removed unnecessary variables
-!
-! v 2.1
-! The line-skip for the search in the band.yaml file is now general
-!
-! v 2.0
-! It is possible to specify up to ngmax groups of atoms
-! If the number of atomic groups is 2, the weight is calculated
-! as in v 1.0.
-!
-! v 1.0
-! It is possible to specify only two groups of atoms
-!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Format of the input file
-!
-! int                     number of atomic groups
-! int                     number of atoms in group 1
-! int                     label of the first atom in the group
-! ...
-! int                     label of the last atom in the group
-! int                     number of atoms in group 2
-! int                     label of the first atom in the group
-! ...
-! int                     label of the last atom in the group
-! ...                     number of atoms in group 3 - if any, and similar
-!                         input structure as above
-!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+module functions
+contains
 
-program phonchar
+  function i2a(i) result(out)
+    character(:), allocatable :: out
+    integer(4), intent(in) :: i
+    character(range(i)+2) :: x
 
-  call init
+    write(x,'(i0)') i
 
-  call read_eigen
-  call calc_char
+    out = trim(x)
+  end function i2a
 
-  call deallocate_all
-  call credits
+end module functions
 
-  stop
-end program phonchar
+module pars
+  ! strings
+  character(6), parameter :: version = 'v1.0.1', output_format = 'g22.14', screen_format = 'f12.4'
+  character(7), parameter :: error_string = 'ERROR: '
+  character(9), parameter :: warning_string = 'WARNING: '
+end module pars
+
+module var
+  ! global parameters
+  integer, parameter :: natmax = 10000
+  character(3), parameter :: version = '2.3'
+  character(8), parameter :: progname = 'PHONCHAR'
+  ! from band file
+  integer, save :: nqp, nq, nag
+  integer, save :: natg(natmax)
+  integer, save, allocatable :: ag(:,:)
+  real(8), save, allocatable :: freq(:,:), vec(:,:)
+  complex(8), save, allocatable :: eig(:,:,:)
+end module var
+
+module refconf
+  integer, save :: atoms_UC
+  real(8), save :: side_UC(3,3)
+  real(8), save, allocatable :: mass_UC(:), pos_eq_UC(:,:)
+end module refconf
+
+module io_units
+  integer, parameter :: inp_unit          = 10
+  integer, parameter :: inp_band          = 11
+end module io_units

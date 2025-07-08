@@ -26,13 +26,24 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine init
+  use io_units, only: inp_unit, inp_band
   use var, only: nag, ag, natmax, natg
+  use refconf
+  use functions, only: i2a
+  use omp_lib
+
   implicit none
-  integer :: i, j
-  character(256) :: infile, in2file
+  integer :: i, j, threads
+  integer(8) :: l
+  character(256) :: infile, in2file, dum
   logical :: file_exists
 
   call show_logo
+
+  !$omp parallel
+  threads = omp_get_num_threads()
+  !$omp end parallel
+  write(*,'(*(a))') ' Running on ', i2a(threads), ' OpenMP threads' 
 
   call get_command_argument(1,infile)
   if ( (infile == '-h') .or. (infile == '' ) ) then
@@ -61,12 +72,12 @@ subroutine init
     stop
   end if
 
-  open(unit=20,file=infile,action='READ')
+  open(unit=inp_unit,file=infile,action='READ')
 
   write(*,'(2a)') ' Reading settings from file: ', trim(infile)
-  read(20,*) nag  ! number of atomic groups
+  read(inp_unit,*) nag  ! number of atomic groups
   if ( nag < 2 ) then
-     write(*,'(a59)') ' ERROR: the number of atomic groups must be greater than 1.'
+     write(*,'(a)') ' ERROR: the number of atomic groups must be greater than 1.'
      write(*,*)
      stop
   end if
@@ -74,7 +85,7 @@ subroutine init
   if ( i /= 0 ) stop 'Allocation failed for ag'
 
   do i = 1, nag
-    read(20,*) natg(i) ! number of atoms in i-th group
+    read(inp_unit,*) natg(i) ! number of atoms in i-th group
     if ( natg(i) > natmax ) then
        write(*,'(a)') ' ERROR: the number of atoms in the groups exceeds natmax.'
        write(*,*)
@@ -82,11 +93,67 @@ subroutine init
     end if
 
     do j = 1, natg(i)
-      read(20,*) ag(i,j)    ! atom j in group i
+      read(inp_unit,*) ag(i,j)    ! atom j in group i
     end do
   end do
 
-  close(20)
+  close(inp_unit)
+
+  open(unit=inp_band,file=in2file,action='READ')
+
+  do
+    read(inp_band,*,iostat=i) dum
+    if ( i<0 ) then
+      write(*,'(a)') 'reached end of file, natom string not found.'
+      write(*,*)
+      stop 
+    else if ( dum == 'natom:' ) then
+      backspace(inp_band)
+      read(inp_band,*) dum, atoms_UC
+      write(*,'(2a)') ' Number of atoms: ', i2a(atoms_UC)
+      exit
+    end if
+  end do
+  call fseek(inp_band, 0, 0, i)
+  l=ftell(inp_band)
+
+  do
+    read(inp_band,*,iostat=i) dum
+    if ( i<0 ) then
+      write(*,'(a)') 'reached end of file, lattice parameters not found.'
+      write(*,*)
+      stop 
+    else if ( dum == 'lattice:' ) then
+      do i = 1, 3
+        read(inp_band,*) dum, dum, side_UC(i,:)
+      end do
+      exit
+    end if
+  end do
+  call fseek(inp_band, 0, 0, i)
+  l=ftell(inp_band)
+
+  allocate ( pos_eq_UC(atoms_UC,3), stat = i )
+  if ( i /= 0 ) stop 'Allocation failed for pos_eq_UC'
+  allocate ( mass_UC(atoms_UC), stat = i )
+  if ( i /= 0 ) stop 'Allocation failed for mass_UC'
+  do
+    read(inp_band,*,iostat=i) dum
+    if ( i<0 ) then
+      write(*,'(a)') 'reached end of file, points: not found.'
+      write(*,*)
+      stop 
+    else if ( dum == 'points:' ) then
+      do i = 1, atoms_UC
+        read(inp_band,*) 
+        read(inp_band,*) dum, dum, pos_eq_UC(i,:)
+        read(inp_band,*) dum, mass_UC(i)
+      end do
+      exit
+    end if
+  end do
+
+  close(inp_band)
 
   return
 end subroutine init

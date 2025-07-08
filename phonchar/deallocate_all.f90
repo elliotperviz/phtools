@@ -26,17 +26,26 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine deallocate_all
-  use var, only: eig, freq
+  use var, only: eig, freq, vec, ag
+  use refconf, only: mass_UC, pos_eq_UC
   implicit none
   integer :: i
-   
 
   write(*,'(a)',advance='no') ' Deallocating variables... '
+
+  deallocate ( ag, stat = i )
+  if ( i /= 0 ) stop 'Deallocation failed for ag'
+  deallocate ( pos_eq_UC, stat = i )
+  if ( i /= 0 ) stop 'Deallocation failed for pos_eq_UC'
+  deallocate ( mass_UC, stat = i )
+  if ( i /= 0 ) stop 'Deallocation failed for mass_UC'
 
   deallocate ( eig, stat = i )
   if ( i /= 0 ) stop 'Deallocation failed for eig'
   deallocate ( freq, stat = i )
   if ( i /= 0 ) stop 'Deallocation failed for freq'
+  deallocate ( vec, stat = i )
+  if ( i /= 0 ) stop 'Deallocation failed for vec'
 
   write(*,'(a)') 'done.'
   write(*,*)
