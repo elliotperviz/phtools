@@ -65,7 +65,7 @@ You can visualize the results by using [gnuplot](http://www.gnuplot.info/):
 
 ```
 
-gnuplot> plot "phchar.dat" u 1:2:3 w p palette ps 0.5
+gnuplot> plot "phchar.dat" u 1:2:3 w l palette lw 3
 
 ```
 
