@@ -50,6 +50,7 @@ $ ./phonchar -h
   |_|
                   2.3
 
+ Running on 32 OpenMP threads
  Syntax: phonchar <setting file> <band.yaml file>
 
 ```
