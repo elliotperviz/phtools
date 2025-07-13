@@ -44,7 +44,7 @@ int                     label of the last atom in the group
 
 ```
 
-where `int`, `char` and `real` specify the type of input. The syntax can be shown by using the `-h` option:
+where `int`, `char` and `real` specify the type of input. The syntax of the command line can be shown by using the `-h` option:
 
 ```
 
