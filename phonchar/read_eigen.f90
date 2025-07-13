@@ -26,8 +26,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine read_eigen
-  use io_units, only: inp_band
-  use var, only: nqp, nq, eig, freq, vec
+  use io_units, only: inp_yaml
+  use in_yaml
   use functions, only: i2a
   use refconf, only: atoms_UC
                  
@@ -35,18 +35,17 @@ subroutine read_eigen
   integer(4) :: i, j, k, ix
   integer(8) :: l
   real(8) :: tmpr, tmpi
-  character(200) :: dum, in2file
+  character(200) :: dum
+  logical :: flag_band
 
-  call get_command_argument(2,in2file)
+  open(unit=inp_yaml,file=inyaml, action='READ')
 
-  open(unit=inp_band,file=in2file, action='READ')
-
-  write(*,'(2a)') ' Reading eigenvectors and frequencies from file: ', trim(in2file)
-  write(*,'(a)', advance='no') ' Checking if input file contains eigenvectors: '
+  write(*,'(2a)') ' Reading eigenvectors and frequencies from file: ', trim(inyaml)
+  write(*,'(*(a))', advance='no') '  Checking if ',trim(inyaml), ' contains eigenvectors: '
   do
-    read(inp_band,*,iostat=i) dum
+    read(inp_yaml,*,iostat=i) dum
     if ( i<0 ) then
-      write(*,'(a)') 'reached end of file, no eigenvectors found.'
+      write(*,'(a)') '  reached end of file, no eigenvectors found.'
       write(*,*)
       stop 
     else if ( dum == 'eigenvector:' ) then
@@ -54,24 +53,24 @@ subroutine read_eigen
       exit
     end if
   end do
-  call fseek(inp_band, 0, 0, i)
-  l=ftell(inp_band)
+  call fseek(inp_yaml, 0, 0, i)
+  l=ftell(inp_yaml)
   do
-    read(inp_band,*,iostat=i) dum
+    read(inp_yaml,*,iostat=i) dum
     if ( i<0 ) then
-      write(*,'(a)') 'reached end of file, nqpoints string not found.'
+      write(*,'(a)') '  reached end of file, nqpoint string not found.'
       write(*,*)
       stop 
     else if ( dum == 'nqpoint:' ) then
-      backspace(inp_band)
-      read(inp_band,*) dum, nqp
+      backspace(inp_yaml)
+      read(inp_yaml,*) dum, nqp
       exit
     end if
   end do
+  call fseek(inp_yaml, 0, 0, i)
+  l=ftell(inp_yaml)
 
-  write(*,'(2a)') ' Number of q-points: ', i2a(nqp)
-  call fseek(inp_band, 0, 0, i)
-  l=ftell(inp_band)
+  write(*,'(2a)') '  Number of q-points: ', i2a(nqp)
 
   nq=atoms_UC*3
 
@@ -82,43 +81,61 @@ subroutine read_eigen
   allocate ( vec(nqp,3), stat = i )
   if ( i /= 0 ) stop 'Allocation failed for freq'
 
+  !check is yaml file is of qpoint.yaml or band.yaml kind
+  flag_band = .false.
   do
-    read(inp_band,*,iostat=i) dum
+    read(inp_yaml,*,iostat=i) dum
+    if ( i<0 ) exit
+    if ( dum == 'distance:' ) then
+      write(*,'(*(a))') '  File ', trim(inyaml), ' is of kind band.yaml' 
+      flag_band = .true.
+      exit
+    end if
+  end do
+  close(inp_yaml)
+
+  if ( .not. flag_band ) write(*,'(*(a))') '  File ', trim(inyaml), ' is of kind qpoints.yaml' 
+
+  open(unit=inp_yaml,file=inyaml, action='READ')
+
+  do
+    read(inp_yaml,'(a)',iostat=i) dum
     if ( i<0 ) then
-      write(*,'(*(a))') 'reached end of file, the input file ', trim(in2file), ' is not complete.'
+      write(*,'(*(a))') '  reached end of file, the input file ', trim(inyaml), ' is not complete.'
       write(*,*)
       stop 
     else if ( dum == 'phonon:' ) then
       exit
     end if
   end do
-  
+
+
   do i = 1, nqp
-    read(inp_band,*) dum, dum, dum, vec(i,:)
-    do k = 1,2
-      read(inp_band,*)
-    end do
+    read(inp_yaml,*) dum, dum, dum, vec(i,:)
+    if (flag_band) read(inp_yaml,*)
+    read(inp_yaml,*)
 
     do j = 1, nq
-      read(inp_band,*)
-      read(inp_band,*) dum, freq(i,j)
-      read(inp_band,*)
+      read(inp_yaml,*)
+      read(inp_yaml,*) dum, freq(i,j)
+      read(inp_yaml,*)
 
       do k = 1, atoms_UC
-        read(inp_band,*)
+        read(inp_yaml,*)
         do ix = 1, 3
-          read(inp_band,*) dum, dum, tmpr, tmpi
+          read(inp_yaml,*) dum, dum, tmpr, tmpi
           eig(i,j,(k-1)*3+ix) = cmplx(tmpr, tmpi, 8) 
         end do
       end do
 
     end do
-    read(inp_band,*)
+    read(inp_yaml,*)
   end do
 
-  close(inp_band)
+  close(inp_yaml)
 
-  write(*,*) 'Reading input file done.'
+  write(*,'(a)') ' Reading yaml file done.'
+  write(*,*)
 
   return
 end subroutine read_eigen

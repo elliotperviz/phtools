@@ -1,5 +1,5 @@
 subroutine show_logo
-  use var, only: version
+  use pars, only: version
 
   write(*,'(a)')     "         _                      _                " 
   write(*,'(a)')     "   _ __ | |__   ___  _ __   ___| |__   __ _ _ __ "

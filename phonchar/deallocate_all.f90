@@ -26,12 +26,11 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine deallocate_all
-  use var, only: eig, freq, vec, ag
+  use in_yaml, only: eig, freq, vec
+  use in_user, only: ag
   use refconf, only: mass_UC, pos_eq_UC
   implicit none
   integer :: i
-
-  write(*,'(a)',advance='no') ' Deallocating variables... '
 
   deallocate ( ag, stat = i )
   if ( i /= 0 ) stop 'Deallocation failed for ag'
@@ -46,9 +45,6 @@ subroutine deallocate_all
   if ( i /= 0 ) stop 'Deallocation failed for freq'
   deallocate ( vec, stat = i )
   if ( i /= 0 ) stop 'Deallocation failed for vec'
-
-  write(*,'(a)') 'done.'
-  write(*,*)
 
   return
 end subroutine deallocate_all

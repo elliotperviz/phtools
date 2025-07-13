@@ -1,4 +1,3 @@
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
 ! phonchar. Copyright (C) 2022 Antonio Cammarata
@@ -26,24 +25,36 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine credits
-  use pars, only: progname
+subroutine rotvec(dir, rotax, rotang, rotdir)
+  implicit none
+  real(8), intent(in) :: dir(3)       ! Input vector to rotate
+  real(8), intent(in) :: rotax(3)     ! Rotation axis (not necessarily normalized)
+  real(8), intent(in) :: rotang       ! Rotation angle in radians
+  real(8), intent(out) :: rotdir(3)   ! Output: rotated vector
 
-  write(*,*)
-  write(*,'(*(a))') ' Suggested reference for the acknowledgment of ',progname,' usage.'
-  write(*,*)
-  write(*,'(*(a))') ' The users of ',progname, ' have little formal obligations'
-  write(*,'(a)') ' specified in the GNU General Public License, http://www.gnu.org/copyleft/gpl.txt .'
-  write(*,'(a)') ' However, it is common practice in the scientific literature,'
-  write(*,'(a)') ' to acknowledge the efforts of people that have made the research possible.'
-  write(*,'(a)') ' In this spirit, please cite '
-  write(*,*)
-  write(*,'(a)') ' Fine control of lattice thermal conductivity in low-dimensional materials'
-  write(*,'(a)') ' A. Cammarata, T. Polcar, Phys. Rev. B 103, 035406 (2021)'
-  write(*,'(a)') ' https://doi.org/10.1103/PhysRevB.103.035406'
-  write(*,*)
-  write(*,'(a)') ' where the formulation used to calculate the phonon atomic character'
-  write(*,'(a)') ' is reported in section V "Atomic character of the phonon modes" of the Supplemental Material.'
-  write(*,*)
+  real(8) :: k(3)
+  real(8) :: norm, cost, sint, dotkv
+  real(8) :: crosskv(3)
 
-end subroutine credits
+  ! Normalize the rotation axis
+  norm = sqrt(dot_product(rotax, rotax))
+  if ( abs(norm) < tiny(1.d0) ) then
+    rotdir = dir
+    return
+  end if
+  k = rotax / norm
+
+  ! Compute dot and cross products
+  dotkv = dot_product(k, dir)
+  crosskv(1) = k(2)*dir(3) - k(3)*dir(2)
+  crosskv(2) = k(3)*dir(1) - k(1)*dir(3)
+  crosskv(3) = k(1)*dir(2) - k(2)*dir(1)
+
+  cost = cos(rotang)
+  sint = sin(rotang)
+
+  ! Rodrigues' rotation formula
+  rotdir = dir * cost + crosskv * sint + k * dotkv * (1.0d0 - cost)
+
+end subroutine rotvec
+

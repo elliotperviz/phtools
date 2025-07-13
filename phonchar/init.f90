@@ -26,56 +26,103 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine init
-  use io_units, only: inp_unit, inp_band
-  use var, only: nag, ag, natmax, natg
-  use refconf
   use functions, only: i2a
+  use pars, only: error_string
+  use io_units, only: input, inp_yaml
+  use in_user
+  use in_yaml
+  use refconf
+  use String_mod, only: String_type
   use omp_lib
 
   implicit none
-  integer :: i, j, threads
+  integer :: i, j
   integer(8) :: l
-  character(256) :: infile, in2file, dum
-  logical :: file_exists
+  character(256) :: infile, inposcar, dum
+  type(String_type) :: inputfiles
+  logical :: file_exists, geo_from_yaml
 
   call show_logo
 
   !$omp parallel
-  threads = omp_get_num_threads()
+  max_num_othreads = omp_get_num_threads()
   !$omp end parallel
-  write(*,'(*(a))') ' Running on ', i2a(threads), ' OpenMP threads' 
+  write(*,'(*(a))') ' Using maximum ', i2a(max_num_othreads), ' OpenMP threads' 
 
   call get_command_argument(1,infile)
   if ( (infile == '-h') .or. (infile == '' ) ) then
-     write(*,'(a)') ' Syntax: phonchar <setting file> <band.yaml file>'
+     write(*,'(a)') ' Syntax: phonchar <setting file>'
      write(*,*)
      stop
   end if
 
   inquire(file=infile,exist=file_exists)
   if ( .not. (file_exists) ) then
-    write(*,'(*(a))') ' ERROR: input file ',trim(infile),' not found.'
+    write(0,'(*(a))') error_string,'input file ',trim(infile),' not found.'
     write(*,*)
     stop
   end if
 
-  call get_command_argument(2,in2file)
-  if ( (in2file == '-h') .or. (in2file == '' ) ) then
-     write(*,'(a)') ' Syntax: phonchar <setting file> <band.yaml file>'
-     write(*,*)
-     stop
-  end if
-  inquire(file=infile,exist=file_exists)
-  if ( .not. (file_exists) ) then
-    write(*,'(*(a))') ' ERROR: input yaml file ',trim(infile),' not found.'
-    write(*,*)
-    stop
-  end if
-
-  open(unit=inp_unit,file=infile,action='READ')
+  open(unit=input,file=infile,action='READ')
 
   write(*,'(2a)') ' Reading settings from file: ', trim(infile)
-  read(inp_unit,*) nag  ! number of atomic groups
+  read(input, *) run_flag(:)
+  if ( run_flag(1) == 0 .and. run_flag(2) == 0 .and. run_flag(3) == 0 ) then
+    write(0,*) error_string, 'all run flags are set to 0, no action to perform.'
+    write(*,*)
+    stop
+  end if
+
+  read(input, '(a)') dum
+  inputfiles%value = trim(dum)
+  inputfiles%Parts = inputfiles%split(inputfiles%value, delim = " ")
+  write(inyaml,'(a)') trim(inputfiles%Parts(1)%record)
+
+  write(*,'(*(a))',advance='no') ' Checking if ',trim(inyaml),' contains information on atoms: '
+  inquire(file=inyaml,exist=file_exists)
+  if ( .not. (file_exists) ) then
+    write(*,*)
+    write(0,'(*(a))') error_string,'input file ',trim(inyaml),' not found.'
+    write(*,*)
+    stop
+  end if
+
+  open(unit=inp_yaml,file=inyaml,action='READ')
+
+  geo_from_yaml = .false.
+  do
+    read(inp_yaml,*,iostat=i) dum
+    if ( i<0 ) then
+      write(inposcar,'(a)') trim(inputfiles%Parts(2)%record)
+      write(*,'(*(a))') 'no, reading input geometry from ', trim(inposcar)
+      inquire(file=inposcar,exist=file_exists)
+      if ( .not. (file_exists) ) then
+        write(0,'(*(a))') error_string, 'input file ',trim(infile),' not found.'
+        write(*,*)
+        stop
+      end if
+      call read_poscar(inposcar)
+      exit
+    else if ( dum == 'points:' ) then
+      write(*,'(a)') 'yes'
+      geo_from_yaml = .true.
+      exit
+    end if
+  end do
+
+  close(inp_yaml)
+
+  read(input,*) dir(:)
+  if ( dot_product(dir(:),dir(:))<tiny(1.d0) ) then
+    write(0,*) error_string, 'the specified direction has null length.'
+    write(*,*)
+    stop
+  end if 
+
+  read(input,*) rotax(:)
+  read(input,*) scanang(:)
+
+  read(input,*) nag  ! number of atomic groups
   if ( nag < 2 ) then
      write(*,'(a)') ' ERROR: the number of atomic groups must be greater than 1.'
      write(*,*)
@@ -85,75 +132,80 @@ subroutine init
   if ( i /= 0 ) stop 'Allocation failed for ag'
 
   do i = 1, nag
-    read(inp_unit,*) natg(i) ! number of atoms in i-th group
+    read(input,*) natg(i) ! number of atoms in i-th group
     if ( natg(i) > natmax ) then
        write(*,'(a)') ' ERROR: the number of atoms in the groups exceeds natmax.'
        write(*,*)
        stop
     end if
-
     do j = 1, natg(i)
-      read(inp_unit,*) ag(i,j)    ! atom j in group i
+      read(input,*) ag(i,j)    ! atom j in group i
     end do
   end do
 
-  close(inp_unit)
+  close(input)
 
-  open(unit=inp_band,file=in2file,action='READ')
+  open(unit=inp_yaml,file=inyaml,action='READ')
 
-  do
-    read(inp_band,*,iostat=i) dum
-    if ( i<0 ) then
-      write(*,'(a)') 'reached end of file, natom string not found.'
-      write(*,*)
-      stop 
-    else if ( dum == 'natom:' ) then
-      backspace(inp_band)
-      read(inp_band,*) dum, atoms_UC
-      write(*,'(2a)') ' Number of atoms: ', i2a(atoms_UC)
-      exit
-    end if
-  end do
-  call fseek(inp_band, 0, 0, i)
-  l=ftell(inp_band)
+  if (geo_from_yaml) then 
 
-  do
-    read(inp_band,*,iostat=i) dum
-    if ( i<0 ) then
-      write(*,'(a)') 'reached end of file, lattice parameters not found.'
-      write(*,*)
-      stop 
-    else if ( dum == 'lattice:' ) then
-      do i = 1, 3
-        read(inp_band,*) dum, dum, side_UC(i,:)
-      end do
-      exit
-    end if
-  end do
-  call fseek(inp_band, 0, 0, i)
-  l=ftell(inp_band)
+    do
+      read(inp_yaml,*,iostat=i) dum
+      if ( i<0 ) then
+        write(*,'(a)') 'reached end of file, natom string not found.'
+        write(*,*)
+        stop 
+      else if ( dum == 'natom:' ) then
+        backspace(inp_yaml)
+        read(inp_yaml,*) dum, atoms_UC
+        write(*,'(2a)') ' Number of atoms: ', i2a(atoms_UC)
+        exit
+      end if
+    end do
+    call fseek(inp_yaml, 0, 0, i)
+    l=ftell(inp_yaml)
+  
+    do
+      read(inp_yaml,*,iostat=i) dum
+      if ( i<0 ) then
+        write(*,'(a)') 'reached end of file, lattice parameters not found.'
+        write(*,*)
+        stop 
+      else if ( dum == 'lattice:' ) then
+        do i = 1, 3
+          read(inp_yaml,*) dum, dum, side_UC(i,:)
+        end do
+        exit
+      end if
+    end do
+    call fseek(inp_yaml, 0, 0, i)
+    l=ftell(inp_yaml)
+  
+    allocate ( pos_eq_UC(atoms_UC,3), stat = i )
+    if ( i /= 0 ) stop 'Allocation failed for pos_eq_UC'
+    allocate ( mass_UC(atoms_UC), stat = i )
+    if ( i /= 0 ) stop 'Allocation failed for mass_UC'
+    do
+      read(inp_yaml,*,iostat=i) dum
+      if ( i<0 ) then
+        write(*,'(a)') 'reached end of file, points: not found.'
+        write(*,*)
+        stop 
+      else if ( dum == 'points:' ) then
+        do i = 1, atoms_UC
+          read(inp_yaml,*) 
+          read(inp_yaml,*) dum, dum, pos_eq_UC(i,:)
+          read(inp_yaml,*) dum, mass_UC(i)
+        end do
+        exit
+      end if
+    end do
+  
+    close(inp_yaml)
 
-  allocate ( pos_eq_UC(atoms_UC,3), stat = i )
-  if ( i /= 0 ) stop 'Allocation failed for pos_eq_UC'
-  allocate ( mass_UC(atoms_UC), stat = i )
-  if ( i /= 0 ) stop 'Allocation failed for mass_UC'
-  do
-    read(inp_band,*,iostat=i) dum
-    if ( i<0 ) then
-      write(*,'(a)') 'reached end of file, points: not found.'
-      write(*,*)
-      stop 
-    else if ( dum == 'points:' ) then
-      do i = 1, atoms_UC
-        read(inp_band,*) 
-        read(inp_band,*) dum, dum, pos_eq_UC(i,:)
-        read(inp_band,*) dum, mass_UC(i)
-      end do
-      exit
-    end if
-  end do
-
-  close(inp_band)
+  end if
 
   return
 end subroutine init
+
+

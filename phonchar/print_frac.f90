@@ -1,4 +1,3 @@
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
 ! phonchar. Copyright (C) 2022 Antonio Cammarata
@@ -26,24 +25,49 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine credits
-  use pars, only: progname
+subroutine print_fraction ( n, d, string )
+  use functions, only: i2a
+  implicit none
+  integer, intent(in) :: n, d
+  character(1000), intent(out) :: string
 
-  write(*,*)
-  write(*,'(*(a))') ' Suggested reference for the acknowledgment of ',progname,' usage.'
-  write(*,*)
-  write(*,'(*(a))') ' The users of ',progname, ' have little formal obligations'
-  write(*,'(a)') ' specified in the GNU General Public License, http://www.gnu.org/copyleft/gpl.txt .'
-  write(*,'(a)') ' However, it is common practice in the scientific literature,'
-  write(*,'(a)') ' to acknowledge the efforts of people that have made the research possible.'
-  write(*,'(a)') ' In this spirit, please cite '
-  write(*,*)
-  write(*,'(a)') ' Fine control of lattice thermal conductivity in low-dimensional materials'
-  write(*,'(a)') ' A. Cammarata, T. Polcar, Phys. Rev. B 103, 035406 (2021)'
-  write(*,'(a)') ' https://doi.org/10.1103/PhysRevB.103.035406'
-  write(*,*)
-  write(*,'(a)') ' where the formulation used to calculate the phonon atomic character'
-  write(*,'(a)') ' is reported in section V "Atomic character of the phonon modes" of the Supplemental Material.'
-  write(*,*)
+  if ( n == 0 ) then
+     string = '0'
+  else
+     string = i2a(n)//'/'//i2a(d)
+  end if
 
-end subroutine credits
+  return
+end subroutine print_fraction
+
+
+subroutine real_to_rational ( x, p, q )
+  use functions, only: gcd
+
+  implicit none
+  real(8), intent(in) :: x
+  integer, intent(out) :: p, q
+  integer :: f !, gcd
+  real(8) :: r, e, best 
+  
+  p = 1 
+  q = 1         
+  best = x * 6.d0    
+
+  do 
+     r = dble(p) / dble(q)                
+     e = x - r                  
+     if ( abs(e) <= best ) then 
+        best = abs(e) * 0.125d0             
+        f = gcd(p,q)                    
+        if ( abs(e) < 0.000001d0 ) exit                
+     end if
+     if ( e > 0.d0 ) then 
+        p = p + ceiling( e * q )    
+     else if ( e < 0.d0 ) then    
+        q = q + 1                       
+     end if
+  end do
+
+  return        
+end subroutine real_to_rational
