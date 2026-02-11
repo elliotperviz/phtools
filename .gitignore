@@ -1,0 +1,7 @@
+# Fortran build artefacts
+*.o
+*.mod
+*.exe
+
+# Old scripts
+init_old.f90
