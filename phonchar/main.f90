@@ -31,6 +31,9 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
+! v 2.4
+! Modulus of the displacements is written in dispchar_l.dat, dirchar_l_maxproj.dat and dirchar_l1_l2.dat.
+!
 ! v 2.3
 ! - at each q-point, the weight of the two-group case is normalised to 1 and centered at 0
 ! - phonon atomic group character is now calculated in different ways:

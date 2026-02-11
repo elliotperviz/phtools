@@ -55,7 +55,7 @@ $ ./phonchar -h
   | |_) | | | | (_) | | | | (__| | | | (_| | |
   | .__/|_| |_|\___/|_| |_|\___|_| |_|\__,_|_|
   |_|
-                  2.3
+                  2.4
 
  Using maximum 8 OpenMP threads
  Syntax: phonchar <setting file>

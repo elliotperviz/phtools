@@ -168,7 +168,7 @@ subroutine calc_dirchar
     write(out_dirchar,'(*(a))') '# q-points: ',i2a(nqp),' ; bands: ',i2a(nq)
     write(out_dirchar,'(a)') '# the weight is the angle (u,dir)'
     ! unified mode index is for use with phind
-    write(out_dirchar,'(a)') '# q-point, freq[THz], weight, u.dir, mode index, unified mode index'
+    write(out_dirchar,'(a)') '# q-point, freq[THz], weight, mod(u), u.dir, mode index, unified mode index'
     do j = 1, nq
       do k = 1, nqp
         mod_u = sqrt(dot_product(u(l,k,j,:),u(l,k,j,:)))
@@ -183,7 +183,7 @@ subroutine calc_dirchar
           w = rad2deg(acos(dpcos))
         end if
         n = (k-1)*nq + j
-        write(out_dirchar,'(a,1x,f12.6,1x,f7.2,1x,E12.6,2(1x,a))') i2a(k), freq(k,j), w, dot_product(u(l,k,j,:),dir(:)), i2a(j), i2a(n)
+        write(out_dirchar,'(a,1x,f12.6,1x,f7.2,1x,E9.3,1x,E9.3,2(1x,a))') i2a(k), freq(k,j), w, mod_u, dot_product(u(l,k,j,:),dir(:)), i2a(j), i2a(n)
       end do
       write(out_dirchar,*) 
       write(out_dirchar,*) 
@@ -206,7 +206,7 @@ subroutine calc_dirchar
     write(out_dirchar,'(*(a))') '# q-points: ',i2a(nqp),' ; bands: ',i2a(nq)
     write(out_dirchar,'(a)') '# the weight is the angle (u(l1),(u(l2))'
     ! unified mode index is for use with phind
-    write(out_dirchar,'(a)') '# q-point, freq[THz], weight, u(l1).u(l2), mode index, unified mode index'
+    write(out_dirchar,'(a)') '# q-point, freq[THz], weight, mod(u(l1)), mod(u(l2)), u(l1).u(l2), mode index, unified mode index'
     do j = 1, nq
       do k = 1, nqp
         mod_u = sqrt(dot_product(u(i1,k,j,:),u(i1,k,j,:)))
@@ -222,7 +222,7 @@ subroutine calc_dirchar
           w = rad2deg(acos(dpcos))
         end if
         n = (k-1)*nq + j
-        write(out_dirchar,'(a,1x,f12.6,1x,f7.2,1x,E12.6,2(1x,a))') i2a(k), freq(k,j), w, dot_product(u(i1,k,j,:),u(i2,k,j,:)), i2a(j), i2a(n)
+        write(out_dirchar,'(a,1x,f12.6,1x,f7.2,1x,2(E9.3,1x),E9.3,2(1x,a))') i2a(k), freq(k,j), w, mod_u, mod_u2, dot_product(u(i1,k,j,:),u(i2,k,j,:)), i2a(j), i2a(n)
       end do
       write(out_dirchar,*) 
       write(out_dirchar,*) 
@@ -250,7 +250,7 @@ subroutine calc_dirchar
       write(out_dirchar,'(*(a))') '# q-points: ',i2a(nqp),' ; bands: ',i2a(nq)
       write(out_dirchar,'(a)') '# the weight is the rotation angle for R(dir) which maximises the projection u.R(dir)'
       ! unified mode index is for use with phind
-      write(out_dirchar,'(a)') '# q-point, freq[THz], weight, u.R(dir), mode index, unified mode index'
+      write(out_dirchar,'(a)') '# q-point, freq[THz], weight, mod(u), u.R(dir), mode index, unified mode index'
       do j = 1, nq
         do k = 1, nqp
           mod_u = sqrt(dot_product(u(l,k,j,:),u(l,k,j,:)))
@@ -272,7 +272,7 @@ subroutine calc_dirchar
             end do
           end if
           n = (k-1)*nq + j
-          write(out_dirchar,'(a,1x,f12.6,1x,f7.2,1x,E12.6,2(1x,a))') i2a(k), freq(k,j), w, dot_product(u(l,k,j,:),rotdir_max(:)), i2a(j), i2a(n)
+          write(out_dirchar,'(a,1x,f12.6,1x,f7.2,1x,E9.3,1x,E9.3,2(1x,a))') i2a(k), freq(k,j), w, mod_u, dot_product(u(l,k,j,:),rotdir_max(:)), i2a(j), i2a(n)
         end do
         write(out_dirchar,*) 
         write(out_dirchar,*) 
