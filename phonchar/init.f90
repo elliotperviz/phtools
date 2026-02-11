@@ -26,186 +26,301 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine init
-  use functions, only: i2a
-  use pars, only: error_string
-  use io_units, only: input, inp_yaml
+  use functions,   only: i2a
+  use pars,        only: error_string
+  use io_units,    only: input, inp_yaml
   use in_user
   use in_yaml
   use refconf
-  use String_mod, only: String_type
+  use String_mod,  only: String_type
   use omp_lib
 
   implicit none
-  integer :: i, j
+
+  integer :: i, j, ios
   integer(8) :: l
-  character(256) :: infile, inposcar, dum
+  character(len=256) :: infile, inposcar, line, key, dum
   type(String_type) :: inputfiles
-  logical :: file_exists, geo_from_yaml
+  logical :: have_files, file_exists
+  logical :: have_scan, have_groups
 
   call show_logo
 
   !$omp parallel
   max_num_othreads = omp_get_num_threads()
   !$omp end parallel
-  write(*,'(*(a))') ' Using maximum ', i2a(max_num_othreads), ' OpenMP threads' 
+  write(*,'(*(a))') ' Using maximum ', i2a(max_num_othreads), ' OpenMP threads'
 
-  call get_command_argument(1,infile)
-  if ( (infile == '-h') .or. (infile == '' ) ) then
-     write(*,'(a)') ' Syntax: phonchar <setting file>'
-     write(*,*)
+  ! ------------------------------------------------------------
+  ! Read input filename
+  ! ------------------------------------------------------------
+  call get_command_argument(1, infile)
+  if (trim(infile) == '' .or. trim(infile) == '-h') then
+     write(*,'(a)') ' Syntax: phonchar <input file>'
      stop
   end if
 
-  inquire(file=infile,exist=file_exists)
-  if ( .not. (file_exists) ) then
-    write(0,'(*(a))') error_string,'input file ',trim(infile),' not found.'
-    write(*,*)
-    stop
+  inquire(file=infile, exist=file_exists)
+  if (.not. file_exists) then
+     write(0,'(*(a))') error_string, 'input file ', trim(infile), ' not found.'
+     stop
   end if
 
-  open(unit=input,file=infile,action='READ')
+  open(unit=input, file=infile, action='READ')
 
-  write(*,'(2a)') ' Reading settings from file: ', trim(infile)
-  read(input, *) run_flag(:)
-  if ( run_flag(1) == 0 .and. run_flag(2) == 0 .and. run_flag(3) == 0 ) then
-    write(0,*) error_string, 'all run flags are set to 0, no action to perform.'
-    write(*,*)
-    stop
-  end if
+  have_files  = .false.
+  have_scan   = .false.
+  have_groups = .false.
 
-  read(input, '(a)') dum
-  inputfiles%value = trim(dum)
-  inputfiles%Parts = inputfiles%split(inputfiles%value, delim = " ")
-  write(inyaml,'(a)') trim(inputfiles%Parts(1)%record)
-
-  write(*,'(*(a))',advance='no') ' Checking if ',trim(inyaml),' contains information on atoms: '
-  inquire(file=inyaml,exist=file_exists)
-  if ( .not. (file_exists) ) then
-    write(*,*)
-    write(0,'(*(a))') error_string,'input file ',trim(inyaml),' not found.'
-    write(*,*)
-    stop
-  end if
-
-  open(unit=inp_yaml,file=inyaml,action='READ')
-
-  geo_from_yaml = .false.
+  ! ------------------------------------------------------------
+  ! Parse phonchar.inp
+  ! ------------------------------------------------------------
   do
-    read(inp_yaml,*,iostat=i) dum
-    if ( i<0 ) then
-      write(inposcar,'(a)') trim(inputfiles%Parts(2)%record)
-      write(*,'(*(a))') 'no, reading input geometry from ', trim(inposcar)
-      inquire(file=inposcar,exist=file_exists)
-      if ( .not. (file_exists) ) then
-        write(0,'(*(a))') error_string, 'input file ',trim(infile),' not found.'
-        write(*,*)
-        stop
+    call read_line(input, line, ios)
+    if (ios < 0) exit
+
+    read(line,*) key
+
+    select case (trim(key))
+
+    case ('run_flags')
+      read(line,*) key, run_flag(:)
+      if (all(run_flag == 0)) then
+        stop 'QUIT: all run_flags are zero'
       end if
-      call read_poscar(inposcar)
-      exit
-    else if ( dum == 'points:' ) then
-      write(*,'(a)') 'yes'
-      geo_from_yaml = .true.
-      exit
-    end if
-  end do
 
-  close(inp_yaml)
+    case ('files')
+      have_files = .true.
+      inposcar = ''   ! default: not provided
+      read(line,*,iostat=ios) key, inyaml, inposcar
+      if (ios /= 0) then
+        read(line,*) key, inyaml
+      end if
 
-  read(input,*) dir(:)
-  if ( dot_product(dir(:),dir(:))<tiny(1.d0) ) then
-    write(0,*) error_string, 'the specified direction has null length.'
-    write(*,*)
-    stop
-  end if 
+    case ('[scan]')
+      if (run_flag(2) == 0) then
+        call skip_block(input)
+      else
+        call read_scan_block(input)
+        have_scan = .true.
+      end if
 
-  read(input,*) rotax(:)
-  read(input,*) scanang(:)
+    case ('[groups]')
+      call read_groups_block(input)
+      have_groups = .true.
 
-  read(input,*) nag  ! number of atomic groups
-  if ( nag < 2 ) then
-     write(*,'(a)') ' ERROR: the number of atomic groups must be greater than 1.'
-     write(*,*)
-     stop
-  end if
-  allocate ( ag(nag,natmax), stat = i )
-  if ( i /= 0 ) stop 'Allocation failed for ag'
+    case default
+      stop 'ERROR: unknown keyword or block: '//trim(key)
 
-  do i = 1, nag
-    read(input,*) natg(i) ! number of atoms in i-th group
-    if ( natg(i) > natmax ) then
-       write(*,'(a)') ' ERROR: the number of atoms in the groups exceeds natmax.'
-       write(*,*)
-       stop
-    end if
-    do j = 1, natg(i)
-      read(input,*) ag(i,j)    ! atom j in group i
-    end do
+    end select
   end do
 
   close(input)
 
-  open(unit=inp_yaml,file=inyaml,action='READ')
+  ! ------------------------------------------------------------
+  ! Validation
+  ! ------------------------------------------------------------
 
-  if (geo_from_yaml) then 
+  if (run_flag(2) == 1 .and. .not. have_scan) then
+    stop 'ERROR: scan block required but missing'
+  end if
+
+  if (.not. have_groups) then
+    stop 'ERROR: atomic groups block is required'
+  end if
+
+  if (.not. have_files) then
+    stop 'ERROR: files block is required'
+  else
+    call init_geometry(inyaml, inposcar)
+  end if
+
+contains
+
+  ! ------------------------------------------------------------
+  logical function ignorable(line)
+    character(*), intent(in) :: line
+    character(len=:), allocatable :: t
+    t = adjustl(line)
+    ignorable = (len_trim(t) == 0) .or. t(1:1) == '#' .or. t(1:1) == '!'
+  end function ignorable
+  ! ------------------------------------------------------------
+
+  subroutine read_line(unit, line, ios)
+    integer, intent(in) :: unit
+    character(len=*), intent(out) :: line
+    integer, intent(out) :: ios
+    do
+      read(unit,'(A)',iostat=ios) line
+      if (ios /= 0) return
+      if (.not. ignorable(line)) return
+    end do
+  end subroutine read_line
+  ! ------------------------------------------------------------
+
+  subroutine skip_block(unit)
+    integer, intent(in) :: unit
+    character(len=256) :: line
+    integer :: ios
+    do
+      call read_line(unit, line, ios)
+      if (ios /= 0) exit
+      if (line(1:1) == '[') then
+        backspace(unit)
+        exit
+      end if
+    end do
+  end subroutine skip_block
+  ! ------------------------------------------------------------
+
+  subroutine read_scan_block(unit)
+    integer, intent(in) :: unit
+    character(len=256) :: line, key
+    integer :: ios
+
+    call read_line(unit, line, ios)
+    read(line,*) key, dir(:)
+
+    if (dot_product(dir,dir) < tiny(1.d0)) then
+      stop 'ERROR: direction vector has zero length'
+    end if
+
+    call read_line(unit, line, ios)
+    read(line,*) key, rotax(:)
+
+    call read_line(unit, line, ios)
+    read(line,*) key, scanang(:)
+  end subroutine read_scan_block
+  ! ------------------------------------------------------------
+
+  subroutine read_groups_block(unit)
+    integer, intent(in) :: unit
+    character(len=256) :: line
+    integer :: ios, i
+
+    call read_line(unit, line, ios)
+    read(line,*) nag
+    if (nag < 2) stop 'ERROR: at least two atomic groups required'
+
+    allocate(ag(nag,natmax))
+
+    do i = 1, nag
+      call read_line(unit, line, ios)
+      read(line,*) natg(i), ag(i,1:natg(i))
+      if (natg(i) > natmax) stop 'ERROR: natg exceeds natmax'
+    end do
+  end subroutine read_groups_block
+  ! ------------------------------------------------------------
+
+  subroutine init_geometry(inyaml, inposcar)
+    use pars,     only : error_string
+    use io_units, only : inp_yaml
+    use refconf
+    implicit none
+
+    character(len=*), intent(in) :: inyaml, inposcar
+    logical :: geo_from_yaml
+    logical :: file_exists
+
+    geo_from_yaml = yaml_has_points(inyaml)
+
+    if (geo_from_yaml) then
+      write(*,'(a)') ' Reading geometry from YAML'
+      call read_geometry_from_yaml(inyaml)
+    else
+      inquire(file=inposcar, exist=file_exists)
+      if (.not. file_exists) then
+        write(0,'(*(a))') error_string, 'input file ', trim(inposcar), ' not found.'
+        stop
+      end if
+      write(*,'(a)') ' Reading geometry from POSCAR'
+      call read_poscar(inposcar)
+    end if
+  end subroutine init_geometry 
+    
+  logical function yaml_has_points(filename)
+    use io_units, only : inp_yaml
+    implicit none
+
+    character(len=*), intent(in) :: filename
+    character(len=256) :: dum
+    integer :: ios
+
+    yaml_has_points = .false.
+
+    open(unit=inp_yaml, file=filename, action='READ')
 
     do
+      read(inp_yaml,*,iostat=ios) dum
+      if (ios < 0) exit
+      if (dum == 'points:') then
+        yaml_has_points = .true.
+        exit
+      end if
+    end do
+
+    close(inp_yaml)
+  end function yaml_has_points
+ 
+  subroutine read_geometry_from_yaml(inyaml)
+    use io_units, only : inp_yaml
+    use refconf
+    use functions, only : i2a
+    implicit none
+
+    character(len=*), intent(in) :: inyaml
+    character(len=256) :: dum
+    integer :: i
+
+    open(unit=inp_yaml, file=inyaml, action='READ')
+
+    ! ---- natom
+    do
       read(inp_yaml,*,iostat=i) dum
-      if ( i<0 ) then
-        write(*,'(a)') 'reached end of file, natom string not found.'
-        write(*,*)
-        stop 
-      else if ( dum == 'natom:' ) then
+      if (i < 0) stop 'reached end of file, natom string not found.'
+      if (dum == 'natom:') then
         backspace(inp_yaml)
         read(inp_yaml,*) dum, atoms_UC
         write(*,'(2a)') ' Number of atoms: ', i2a(atoms_UC)
         exit
       end if
     end do
-    call fseek(inp_yaml, 0, 0, i)
-    l=ftell(inp_yaml)
-  
+
+    rewind(inp_yaml)
+
+    ! ---- lattice
     do
       read(inp_yaml,*,iostat=i) dum
-      if ( i<0 ) then
-        write(*,'(a)') 'reached end of file, lattice parameters not found.'
-        write(*,*)
-        stop 
-      else if ( dum == 'lattice:' ) then
+      if (i < 0) stop 'reached end of file, lattice parameters not found.'
+      if (dum == 'lattice:') then
         do i = 1, 3
           read(inp_yaml,*) dum, dum, side_UC(i,:)
         end do
         exit
       end if
     end do
-    call fseek(inp_yaml, 0, 0, i)
-    l=ftell(inp_yaml)
-  
-    allocate ( pos_eq_UC(atoms_UC,3), stat = i )
-    if ( i /= 0 ) stop 'Allocation failed for pos_eq_UC'
-    allocate ( mass_UC(atoms_UC), stat = i )
-    if ( i /= 0 ) stop 'Allocation failed for mass_UC'
+
+    rewind(inp_yaml)
+
+    allocate(pos_eq_UC(atoms_UC,3))
+    allocate(mass_UC(atoms_UC))
+
+    ! ---- points
     do
       read(inp_yaml,*,iostat=i) dum
-      if ( i<0 ) then
-        write(*,'(a)') 'reached end of file, points: not found.'
-        write(*,*)
-        stop 
-      else if ( dum == 'points:' ) then
+      if (i < 0) stop 'reached end of file, points: not found.'
+      if (dum == 'points:') then
         do i = 1, atoms_UC
-          read(inp_yaml,*) 
+          read(inp_yaml,*)
           read(inp_yaml,*) dum, dum, pos_eq_UC(i,:)
           read(inp_yaml,*) dum, mass_UC(i)
         end do
         exit
       end if
     end do
-  
+
     close(inp_yaml)
+end subroutine read_geometry_from_yaml
 
-  end if
-
-  return
 end subroutine init
-
 
