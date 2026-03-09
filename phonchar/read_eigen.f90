@@ -41,6 +41,7 @@ subroutine read_eigen
   real(8) :: tmpv(3)
 
   character(200) :: dum
+  character(256) :: line
 
   logical :: flag_band, flag_mesh
 
@@ -151,7 +152,11 @@ subroutine read_eigen
       read(inp_yaml,*)
       !write(*,*) "Reading q=", i, " band=", j
       read(inp_yaml,*) dum, freq(i,j)
-      read(inp_yaml,*)
+      !skip group velocity line if prsent
+      read(inp_yaml,'(A)') line
+      if (index(adjustl(line),"group_velocity") > 0) then
+        read(inp_yaml,*)
+      end if
 
       do k = 1, atoms_UC
         read(inp_yaml,*)
